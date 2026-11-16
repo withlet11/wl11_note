@@ -14,13 +14,9 @@ void main() {
   late NotesProvider provider;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'wl11_note_provider_test_',
-    );
+    tempDir = await Directory.systemTemp.createTemp('wl11_note_provider_test_');
 
-    appDatabase = AppDatabase(
-      databasePath: p.join(tempDir.path, 'test.db'),
-    );
+    appDatabase = AppDatabase(databasePath: p.join(tempDir.path, 'test.db'));
 
     final noteService = NoteService(
       notesDao: NotesDao(appDatabase: appDatabase),
@@ -99,9 +95,7 @@ void main() {
 
   group('Notes', () {
     test('creates and selects a note', () async {
-      final note = await provider.createNote(
-        content: '# New note',
-      );
+      final note = await provider.createNote(content: '# New note');
 
       expect(provider.activeNotes, hasLength(1));
       expect(provider.activeNotes.first.id, note.id);
@@ -112,10 +106,7 @@ void main() {
     test('updates note content and provider state', () async {
       final note = await provider.createNote();
 
-      await provider.updateNoteContent(
-        note.id,
-        'Updated content',
-      );
+      await provider.updateNoteContent(note.id, 'Updated content');
 
       expect(provider.activeNotes.first.content, 'Updated content');
       expect(provider.selectedNote!.content, 'Updated content');
@@ -143,11 +134,10 @@ void main() {
       expect(provider.deletedNotes, isEmpty);
     });
 
-    test('returns false when deleting or restoring a missing note',
-            () async {
-          expect(await provider.deleteNote('missing-note'), isFalse);
-          expect(await provider.restoreNote('missing-note'), isFalse);
-        });
+    test('returns false when deleting or restoring a missing note', () async {
+      expect(await provider.deleteNote('missing-note'), isFalse);
+      expect(await provider.restoreNote('missing-note'), isFalse);
+    });
   });
 
   group('Tags', () {
@@ -162,10 +152,7 @@ void main() {
     test('renames a tag', () async {
       final tag = await provider.createTag('Work');
 
-      expect(
-        await provider.renameTag(tag.id, 'Projects'),
-        isTrue,
-      );
+      expect(await provider.renameTag(tag.id, 'Projects'), isTrue);
 
       expect(provider.tags.first.name, 'Projects');
     });
@@ -181,20 +168,14 @@ void main() {
       final note = await provider.createNote();
       final tag = await provider.createTag('Work');
 
-      expect(
-        await provider.assignTag(note.id, tag.id),
-        isTrue,
-      );
+      expect(await provider.assignTag(note.id, tag.id), isTrue);
 
       var noteTags = await provider.getTagsForNote(note.id);
 
       expect(noteTags, hasLength(1));
       expect(noteTags.first.id, tag.id);
 
-      expect(
-        await provider.removeTag(note.id, tag.id),
-        isTrue,
-      );
+      expect(await provider.removeTag(note.id, tag.id), isTrue);
 
       noteTags = await provider.getTagsForNote(note.id);
 

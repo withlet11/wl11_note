@@ -4,14 +4,26 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
+import 'package:sqflite_common_ffi/sqflite_common_ffi.dart';
 
 class AppDatabase {
   AppDatabase({this.databaseName = 'wl11_note.db', String? databasePath})
     : _customDatabasePath = databasePath;
 
   static final AppDatabase instance = AppDatabase();
+
+  static bool _databaseFactoryInitialized = false;
+
+  static void _initializeDatabaseFactory() {
+    if (!Platform.isLinux || _databaseFactoryInitialized) {
+      return;
+    }
+
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+
+    _databaseFactoryInitialized = true;
+  }
 
   final String databaseName;
   final String? _customDatabasePath;
@@ -25,10 +37,7 @@ class AppDatabase {
   }
 
   Future<Database> _openDatabase() async {
-    if (Platform.isLinux) {
-      ffi.sqfliteFfiInit();
-      databaseFactory = ffi.databaseFactoryFfi;
-    }
+    _initializeDatabaseFactory();
 
     final databasePath =
         _customDatabasePath ?? p.join(await getDatabasesPath(), databaseName);
