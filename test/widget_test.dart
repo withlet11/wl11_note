@@ -16,7 +16,14 @@ import 'package:wl11_note/providers/notes_provider.dart';
 import 'package:wl11_note/services/note_service.dart';
 
 void main() {
-  testWidgets('Application initializes successfully', (tester) async {
+  testWidgets('Main screen displays the empty notes state', (tester) async {
+    // Set a desktop-sized viewport.
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     late Directory tempDir;
     late AppDatabase database;
     late NotesProvider provider;
@@ -47,10 +54,9 @@ void main() {
       await tester.pump();
 
       expect(find.text('wl11_note'), findsOneWidget);
-      expect(find.text('Initialization successful'), findsOneWidget);
-      expect(find.text('Active notes: 0'), findsOneWidget);
-      expect(find.text('Deleted notes: 0'), findsOneWidget);
-      expect(find.text('Tags: 0'), findsOneWidget);
+      expect(find.text('No notes yet'), findsOneWidget);
+      expect(find.text('Create a note to get started.'), findsOneWidget);
+      expect(find.text('Select a note or create a new one.'), findsOneWidget);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       provider.dispose();

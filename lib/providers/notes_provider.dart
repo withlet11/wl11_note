@@ -3,9 +3,10 @@
 
 import 'package:flutter/foundation.dart';
 
-import '../models/note.dart';
+import '../models/note.dart' show Note;
 import '../models/tag.dart';
 import '../services/note_service.dart';
+import '../utils/note_title.dart';
 
 class NotesProvider extends ChangeNotifier {
   NotesProvider({NoteService? noteService})
@@ -17,17 +18,83 @@ class NotesProvider extends ChangeNotifier {
   List<Note> _deletedNotes = [];
   List<Tag> _tags = [];
 
+  // Search and filtering
+
+  String _searchQuery = '';
+  final Set<int> _selectedTagIds = {};
+  Map<int, Set<String>> _noteIdsByTag = {};
+
+  Map<String, List<Tag>> _tagsByNoteId = {};
+
+  List<Tag> tagsForNote(String noteId) {
+    return List.unmodifiable(_tagsByNoteId[noteId] ?? const <Tag>[]);
+  }
+
+  String get searchQuery => _searchQuery;
+
+  Set<int> get selectedTagIds => Set.unmodifiable(_selectedTagIds);
+
+  bool isTagSelected(int tagId) => _selectedTagIds.contains(tagId);
+
+  List<Note> get filteredNotes {
+    final query = _searchQuery.trim().toLowerCase();
+
+    return List.unmodifiable(
+      _activeNotes.where((note) {
+        final matchesQuery =
+            query.isEmpty ||
+            deriveNoteTitle(note.content).toLowerCase().contains(query) ||
+            note.content.toLowerCase().contains(query);
+
+        final matchesTags =
+            _selectedTagIds.isEmpty ||
+            _selectedTagIds.any(
+              (tagId) => _noteIdsByTag[tagId]?.contains(note.id) ?? false,
+            );
+
+        return matchesQuery && matchesTags;
+      }),
+    );
+  }
+
+  void setSearchQuery(String query) {
+    if (_searchQuery == query) return;
+
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  void toggleTagFilter(int tagId) {
+    if (!_tags.any((tag) => tag.id == tagId)) return;
+
+    if (!_selectedTagIds.add(tagId)) {
+      _selectedTagIds.remove(tagId);
+    }
+
+    notifyListeners();
+  }
+
+  void clearTagFilters() {
+    if (_selectedTagIds.isEmpty) return;
+
+    _selectedTagIds.clear();
+    notifyListeners();
+  }
+
+  // General state
+
   String? _selectedNoteId;
 
   int _pendingOperations = 0;
+
   bool get isLoading => _pendingOperations > 0;
 
   Object? _error;
 
-  // State
-
   List<Note> get activeNotes => List.unmodifiable(_activeNotes);
+
   List<Note> get deletedNotes => List.unmodifiable(_deletedNotes);
+
   List<Tag> get tags => List.unmodifiable(_tags);
 
   String? get selectedNoteId => _selectedNoteId;
@@ -44,6 +111,7 @@ class NotesProvider extends ChangeNotifier {
   }
 
   Object? get error => _error;
+
   bool get hasError => _error != null;
 
   // Initialization and refresh
@@ -61,11 +129,51 @@ class NotesProvider extends ChangeNotifier {
   Future<void> _refreshNotes() async {
     _activeNotes = await _noteService.getAllActiveNotes();
     _deletedNotes = await _noteService.getAllDeletedNotes();
+
+    await _refreshTagAssignments();
     _validateSelection();
   }
 
   Future<void> _refreshTags() async {
     _tags = await _noteService.getAllTags();
+
+    final validTagIds = _tags.map((tag) => tag.id).toSet();
+    _selectedTagIds.removeWhere((id) => !validTagIds.contains(id));
+
+    await _refreshTagAssignments();
+  }
+
+  Future<void> _refreshTagAssignments() async {
+    if (_tags.isEmpty) {
+      _noteIdsByTag = {};
+      _tagsByNoteId = {};
+      return;
+    }
+
+    final entries = await Future.wait(
+      _tags.map((tag) async {
+        final notes = await _noteService.getNotesForTag(tag.id);
+
+        return MapEntry(tag, notes);
+      }),
+    );
+
+    final noteIdsByTag = <int, Set<String>>{};
+    final tagsByNoteId = <String, List<Tag>>{};
+
+    for (final entry in entries) {
+      final tag = entry.key;
+      final notes = entry.value;
+
+      noteIdsByTag[tag.id] = notes.map((note) => note.id).toSet();
+
+      for (final note in notes) {
+        tagsByNoteId.putIfAbsent(note.id, () => []).add(tag);
+      }
+    }
+
+    _noteIdsByTag = noteIdsByTag;
+    _tagsByNoteId = tagsByNoteId;
   }
 
   void _validateSelection() {
@@ -214,6 +322,7 @@ class NotesProvider extends ChangeNotifier {
   }
 
   // Internal operation handling
+
   Future<T> _run<T>(Future<T> Function() operation) async {
     _error = null;
     _pendingOperations++;
