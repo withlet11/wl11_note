@@ -1,0 +1,144 @@
+// Copyright 2026 WITHLET11 <withlet11@gmail.com>
+// SPDX-License-Identifier: MIT
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+
+import 'package:wl11_note/database/app_database.dart';
+import 'package:wl11_note/database/notes_dao.dart';
+import 'package:wl11_note/database/tags_dao.dart';
+import 'package:wl11_note/models/note.dart';
+import 'package:wl11_note/providers/notes_provider.dart';
+import 'package:wl11_note/screens/note_detail_pane.dart';
+import 'package:wl11_note/services/note_service.dart';
+
+void main() {
+  testWidgets('Markdown formatting works in the note editor', (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    late Directory tempDir;
+    late AppDatabase database;
+    late NotesDao notesDao;
+    late NotesProvider provider;
+
+    const noteId = 'widget-test-note';
+    final now = DateTime.now();
+
+    final note = Note(
+      id: noteId,
+      content: 'Hello world',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await tester.runAsync(() async {
+      tempDir = await Directory.systemTemp.createTemp('wl11_note_editor_test_');
+
+      database = AppDatabase(databasePath: p.join(tempDir.path, 'test.db'));
+
+      notesDao = NotesDao(appDatabase: database);
+
+      final noteService = NoteService(
+        notesDao: notesDao,
+        tagsDao: TagsDao(appDatabase: database),
+      );
+
+      provider = NotesProvider(noteService: noteService);
+
+      await notesDao.insert(note);
+      await provider.initialize();
+      provider.selectNote(noteId);
+    });
+
+    final paneKey = GlobalKey<NoteDetailPaneState>();
+
+    try {
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: provider,
+          child: MaterialApp(home: NoteDetailPane(key: paneKey)),
+        ),
+      );
+
+      await tester.pump();
+
+      final editorFinder = find.byType(TextField);
+      expect(editorFinder, findsOneWidget);
+
+      final controller = tester.widget<TextField>(editorFinder).controller!;
+
+      // Toolbar formatting: bold selected text.
+      controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 5,
+      );
+
+      await tester.tap(find.byTooltip('Bold (Ctrl+B)'));
+      await tester.pump();
+
+      expect(controller.text, '**Hello** world');
+      expect(
+        controller.selection,
+        const TextSelection(baseOffset: 2, extentOffset: 7),
+      );
+
+      // Keyboard shortcut: italic selected text.
+      await tester.tap(editorFinder);
+      controller.selection = const TextSelection(
+        baseOffset: 10,
+        extentOffset: 15,
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyI);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyI);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(controller.text, '**Hello** *world*');
+
+      // Preview mode hides the formatting toolbar.
+      await tester.tap(find.text('Preview'));
+      await tester.pump();
+
+      expect(find.byTooltip('Bold (Ctrl+B)'), findsNothing);
+
+      final previewFinder = find.byType(MarkdownBody);
+      expect(previewFinder, findsOneWidget);
+
+      final preview = tester.widget<MarkdownBody>(previewFinder);
+      expect(preview.data, '**Hello** *world*');
+
+      // Explicitly save and verify persistence.
+      final saveResult = await tester.runAsync(
+        () => paneKey.currentState!.savePendingChanges(),
+      );
+
+      expect(saveResult, isTrue);
+
+      final savedNote = await tester.runAsync(() => notesDao.getById(noteId));
+
+      expect(savedNote, isNotNull);
+      expect(savedNote!.content, '**Hello** *world*');
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      provider.dispose();
+
+      await tester.runAsync(() async {
+        await database.close();
+        await tempDir.delete(recursive: true);
+      });
+    }
+  });
+}
