@@ -26,13 +26,19 @@ class _FormatNoteIntent extends Intent {
 }
 
 class NoteDetailPane extends StatefulWidget {
-  const NoteDetailPane({super.key, this.showBackButton = false, this.onBack});
+  const NoteDetailPane({
+    super.key,
+    this.showBackButton = false,
+    this.onBack,
+    this.markdownExportService,
+  });
 
   final bool showBackButton;
   final VoidCallback? onBack;
+  final MarkdownExportService? markdownExportService;
 
   @override
-  NoteDetailPaneState createState() => NoteDetailPaneState();
+  State<NoteDetailPane> createState() => NoteDetailPaneState();
 }
 
 class NoteDetailPaneState extends State<NoteDetailPane> {
@@ -40,7 +46,10 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
 
   final _editorFocusNode = FocusNode();
   final _controller = TextEditingController();
-  final _markdownExportService = MarkdownExportService();
+  final _defaultMarkdownExportService = MarkdownExportService();
+
+  MarkdownExportService get _markdownExportService =>
+      widget.markdownExportService ?? _defaultMarkdownExportService;
 
   Timer? _debounce;
   String? _editingNoteId;

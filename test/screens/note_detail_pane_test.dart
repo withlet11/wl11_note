@@ -1,6 +1,7 @@
 // Copyright 2026 WITHLET11 <withlet11@gmail.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -16,7 +17,28 @@ import 'package:wl11_note/database/tags_dao.dart';
 import 'package:wl11_note/models/note.dart';
 import 'package:wl11_note/providers/notes_provider.dart';
 import 'package:wl11_note/screens/note_detail_pane.dart';
+import 'package:wl11_note/services/markdown_export_service.dart';
 import 'package:wl11_note/services/note_service.dart';
+
+class TestNotesProvider extends NotesProvider {
+  TestNotesProvider({required super.noteService});
+
+  String? lastSavedNoteId;
+  String? lastSavedContent;
+
+  @override
+  Future<Note> updateNoteContent(String noteId, String content) async {
+    lastSavedNoteId = noteId;
+    lastSavedContent = content;
+
+    final note = selectedNote;
+    if (note == null || note.id != noteId) {
+      throw StateError('Note not found: $noteId');
+    }
+
+    return note.copyWith(content: content, updatedAt: DateTime.now());
+  }
+}
 
 void main() {
   testWidgets('Markdown formatting works in the note editor', (tester) async {
@@ -180,6 +202,139 @@ void main() {
 
       expect(savedNote, isNotNull);
       expect(savedNote!.content, '**Hello** *world*');
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      provider.dispose();
+
+      await tester.runAsync(() async {
+        await database.close();
+        await tempDir.delete(recursive: true);
+      });
+    }
+  });
+
+  testWidgets('Markdown export saves pending changes and handles results', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    late Directory tempDir;
+    late AppDatabase database;
+    late TestNotesProvider provider;
+
+    const noteId = 'export-test-note';
+    final now = DateTime.now();
+
+    final note = Note(
+      id: noteId,
+      content: 'Original content',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await tester.runAsync(() async {
+      tempDir = await Directory.systemTemp.createTemp('wl11_note_export_test_');
+
+      database = AppDatabase(databasePath: p.join(tempDir.path, 'test.db'));
+
+      final noteService = NoteService(
+        notesDao: NotesDao(appDatabase: database),
+        tagsDao: TagsDao(appDatabase: database),
+      );
+
+      provider = TestNotesProvider(noteService: noteService);
+
+      await NotesDao(appDatabase: database).insert(note);
+      await provider.initialize();
+      provider.selectNote(noteId);
+    });
+
+    String? exportedFileName;
+    Uint8List? exportedBytes;
+    String? exportResult = '/tmp/exported.md';
+    Object? exportError;
+
+    final exportService = MarkdownExportService(
+      saveFile: ({required String fileName, required Uint8List bytes}) async {
+        exportedFileName = fileName;
+        exportedBytes = bytes;
+
+        if (exportError != null) {
+          throw exportError;
+        }
+
+        return exportResult;
+      },
+    );
+
+    try {
+      await tester.pumpWidget(
+        ChangeNotifierProvider<NotesProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: NoteDetailPane(markdownExportService: exportService),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      final exportTooltip = find.byTooltip('Export as Markdown');
+      final exportButton = find.ancestor(
+        of: exportTooltip,
+        matching: find.byType(IconButton),
+      );
+
+      expect(exportTooltip, findsOneWidget);
+      expect(tester.widget<IconButton>(exportButton).onPressed, isNotNull);
+
+      // Enter new content without waiting for the autosave timer.
+      const updatedContent = '# Updated note\n\nJapanese: 日本語';
+
+      await tester.enterText(find.byType(TextField), updatedContent);
+
+      // Export.
+      await tester.tap(exportTooltip);
+      await tester.pump();
+      await tester.pump();
+
+      expect(provider.lastSavedNoteId, noteId);
+      expect(provider.lastSavedContent, updatedContent);
+      expect(exportedFileName, 'Updated note.md');
+      expect(utf8.decode(exportedBytes!), updatedContent);
+      expect(find.text('Note exported successfully.'), findsOneWidget);
+
+      // Dismiss the success message before testing cancellation.
+      tester
+          .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+          .hideCurrentSnackBar();
+
+      await tester.pumpAndSettle();
+
+      exportResult = null;
+
+      await tester.tap(exportTooltip);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Note exported successfully.'), findsNothing);
+
+      // Export errors should be reported.
+      await tester.pump(const Duration(seconds: 5));
+
+      exportResult = '/tmp/exported.md';
+      exportError = Exception('Test export error');
+
+      await tester.tap(exportTooltip);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.textContaining('Could not export note:'), findsOneWidget);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
 
