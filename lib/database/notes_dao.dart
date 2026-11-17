@@ -120,4 +120,20 @@ class NotesDao {
       whereArgs: [id],
     );
   }
+
+  Future<int> permanentlyDelete(String id) async {
+    final db = await _database;
+
+    return db.delete(
+      'notes',
+      where: 'id = ? AND deleted_at_ms IS NOT NULL',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> permanentlyDeleteAll() async {
+    final db = await _database;
+
+    return db.delete('notes', where: 'deleted_at_ms IS NOT NULL');
+  }
 }

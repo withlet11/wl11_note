@@ -251,6 +251,30 @@ class NotesProvider extends ChangeNotifier {
     });
   }
 
+  Future<bool> permanentlyDeleteNote(String id) {
+    return _run(() async {
+      final deleted = await _noteService.permanentlyDeleteNote(id);
+
+      if (deleted) {
+        await _refreshNotes();
+      }
+
+      return deleted;
+    });
+  }
+
+  Future<int> permanentlyDeleteAllNotes() {
+    return _run(() async {
+      final deletedCount = await _noteService.permanentlyDeleteAllNotes();
+
+      if (deletedCount > 0) {
+        await _refreshNotes();
+      }
+
+      return deletedCount;
+    });
+  }
+
   // Tags
 
   Future<Tag> createTag(String name) {

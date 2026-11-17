@@ -112,4 +112,24 @@ void main() {
 
     expect(await notesDao.restore('missing'), 0);
   });
+
+  test('permanently deletes all trashed notes only', () async {
+    final activeNote = createTestNote(id: 'active');
+    final deletedNote1 = createTestNote(id: 'deleted-1');
+    final deletedNote2 = createTestNote(id: 'deleted-2');
+
+    await notesDao.insert(activeNote);
+    await notesDao.insert(deletedNote1);
+    await notesDao.insert(deletedNote2);
+
+    await notesDao.softDelete(deletedNote1.id);
+    await notesDao.softDelete(deletedNote2.id);
+
+    final deletedCount = await notesDao.permanentlyDeleteAll();
+
+    expect(deletedCount, 2);
+    expect(await notesDao.getById(activeNote.id), isNotNull);
+    expect(await notesDao.getByIdIncludingDeleted(deletedNote1.id), isNull);
+    expect(await notesDao.getByIdIncludingDeleted(deletedNote2.id), isNull);
+  });
 }

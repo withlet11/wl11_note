@@ -116,6 +116,77 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
     );
   }
 
+  Future<void> _deleteNote(Note note) async {
+    final canDelete = await savePendingChanges();
+
+    if (!canDelete || !mounted) return;
+
+    final provider = context.read<NotesProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final title = deriveNoteTitle(note.content);
+
+    try {
+      final deleted = await provider.deleteNote(note.id);
+
+      if (!mounted) return;
+
+      if (!deleted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Could not delete note.')),
+        );
+        return;
+      }
+
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('"$title" moved to Trash'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              unawaited(
+                _restoreDeletedNote(provider, note.id, title, messenger),
+              );
+            },
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not delete note: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _restoreDeletedNote(
+    NotesProvider provider,
+    String noteId,
+    String title,
+    ScaffoldMessengerState messenger,
+  ) async {
+    try {
+      final restored = await provider.restoreNote(noteId);
+
+      if (!messenger.mounted) return;
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            restored ? '"$title" restored' : 'Could not restore note.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (messenger.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not restore note: $error')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<NotesProvider>(
@@ -150,6 +221,13 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                         });
                       },
                 child: Text(_isPreview ? 'Edit' : 'Preview'),
+              ),
+              IconButton(
+                tooltip: 'Move to Trash',
+                onPressed: note == null || provider.isLoading
+                    ? null
+                    : () => _deleteNote(note),
+                icon: const Icon(Icons.delete_outline),
               ),
               IconButton(
                 tooltip: 'Manage note tags',

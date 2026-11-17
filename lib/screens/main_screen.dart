@@ -160,7 +160,9 @@ class _MobileLayout extends StatelessWidget {
   }
 }
 
-class NoteListPane extends StatelessWidget {
+enum _NoteListView { notes, trash }
+
+class NoteListPane extends StatefulWidget {
   const NoteListPane({
     super.key,
     required this.onCreateNote,
@@ -170,6 +172,13 @@ class NoteListPane extends StatelessWidget {
   final VoidCallback onCreateNote;
   final ValueChanged<String> onSelectNote;
 
+  @override
+  State<NoteListPane> createState() => _NoteListPaneState();
+}
+
+class _NoteListPaneState extends State<NoteListPane> {
+  _NoteListView _view = _NoteListView.notes;
+
   void _showTagManagementDialog(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -177,11 +186,122 @@ class NoteListPane extends StatelessWidget {
     );
   }
 
+  Future<void> _restoreNote(
+    BuildContext context,
+    NotesProvider provider,
+    Note note,
+  ) async {
+    try {
+      await provider.restoreNote(note.id);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not restore note: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _permanentlyDeleteNote(
+    BuildContext context,
+    NotesProvider provider,
+    Note note,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete permanently?'),
+          content: Text(
+            'Delete "${deriveNoteTitle(note.content)}" permanently? '
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete permanently'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await provider.permanentlyDeleteNote(note.id);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete note permanently: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearTrash() async {
+    final provider = context.read<NotesProvider>();
+    final count = provider.deletedNotes.length;
+
+    if (count == 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Trash?'),
+        content: Text(
+          'Permanently delete $count '
+          '${count == 1 ? 'note' : 'notes'}? '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete forever'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final deletedCount = await provider.permanentlyDeleteAllNotes();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$deletedCount '
+            '${deletedCount == 1 ? 'note' : 'notes'} permanently deleted',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not clear Trash: $error')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<NotesProvider>(
       builder: (context, provider, child) {
         final notes = provider.filteredNotes;
+        final isTrash = _view == _NoteListView.trash;
+
         final hasFilters =
             provider.searchQuery.isNotEmpty ||
             provider.selectedTagIds.isNotEmpty;
@@ -193,7 +313,7 @@ class NoteListPane extends StatelessWidget {
             actions: [
               IconButton(
                 tooltip: 'New note',
-                onPressed: provider.isLoading ? null : onCreateNote,
+                onPressed: provider.isLoading ? null : widget.onCreateNote,
                 icon: const Icon(Icons.add),
               ),
               IconButton(
@@ -201,59 +321,102 @@ class NoteListPane extends StatelessWidget {
                 onPressed: () => _showTagManagementDialog(context),
                 icon: const Icon(Icons.sell_outlined),
               ),
+              if (_view == _NoteListView.trash &&
+                  provider.deletedNotes.isNotEmpty)
+                IconButton(
+                  tooltip: 'Clear Trash',
+                  onPressed: provider.isLoading ? null : _clearTrash,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                ),
             ],
           ),
           body: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                child: TextField(
-                  key: const ValueKey('noteSearchField'),
-                  onChanged: provider.setSearchQuery,
-                  decoration: InputDecoration(
-                    hintText: 'Search notes',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: provider.searchQuery.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Clear search',
-                            onPressed: () => provider.setSearchQuery(''),
-                            icon: const Icon(Icons.clear),
-                          ),
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _viewButton(
+                        label: 'Notes',
+                        icon: Icons.note_outlined,
+                        view: _NoteListView.notes,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _viewButton(
+                        label: 'Trash',
+                        icon: Icons.delete_outline,
+                        view: _NoteListView.trash,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (provider.tags.isNotEmpty)
-                SizedBox(
-                  height: 48,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: [
-                      ...provider.tags.map((tag) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
+
+              if (!isTrash) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                  child: TextField(
+                    key: const ValueKey('noteSearchField'),
+                    onChanged: provider.setSearchQuery,
+                    decoration: InputDecoration(
+                      hintText: 'Search notes',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: provider.searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              onPressed: () => provider.setSearchQuery(''),
+                              icon: const Icon(Icons.clear),
+                            ),
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+
+                if (provider.tags.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        ...provider.tags.map(
+                          (tag) => FilterChip(
                             label: Text(tag.name),
                             selected: provider.isTagSelected(tag.id),
                             onSelected: (_) {
                               provider.toggleTagFilter(tag.id);
                             },
                           ),
-                        );
-                      }),
-                      if (provider.selectedTagIds.isNotEmpty)
-                        TextButton(
-                          onPressed: provider.clearTagFilters,
-                          child: const Text('Clear'),
                         ),
-                    ],
+                        if (provider.selectedTagIds.isNotEmpty)
+                          TextButton(
+                            onPressed: provider.clearTagFilters,
+                            child: const Text('Clear'),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+              ],
+
               Expanded(
-                child: notes.isEmpty
+                child: isTrash
+                    ? _TrashListView(
+                        notes: provider.deletedNotes,
+                        isLoading: provider.isLoading,
+                        onRestore: (note) =>
+                            _restoreNote(context, provider, note),
+                        onDeletePermanently: (note) =>
+                            _permanentlyDeleteNote(context, provider, note),
+                      )
+                    : notes.isEmpty
                     ? _FilteredEmptyView(
                         hasFilters: hasFilters,
                         onClear: () {
@@ -271,7 +434,7 @@ class NoteListPane extends StatelessWidget {
                             tags: provider.tagsForNote(note.id),
                             selectedTagIds: provider.selectedTagIds,
                             selected: note.id == provider.selectedNoteId,
-                            onTap: () => onSelectNote(note.id),
+                            onTap: () => widget.onSelectNote(note.id),
                             onTagTap: provider.toggleTagFilter,
                           );
                         },
@@ -282,6 +445,26 @@ class NoteListPane extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _viewButton({
+    required String label,
+    required IconData icon,
+    required _NoteListView view,
+  }) {
+    final selected = _view == view;
+
+    return selected
+        ? FilledButton.tonalIcon(
+            onPressed: () => setState(() => _view = view),
+            icon: Icon(icon),
+            label: Text(label),
+          )
+        : OutlinedButton.icon(
+            onPressed: () => setState(() => _view = view),
+            icon: Icon(icon),
+            label: Text(label),
+          );
   }
 }
 
@@ -385,6 +568,95 @@ class _NoteListTile extends StatelessWidget {
     return '${localDate.year}-'
         '${localDate.month.toString().padLeft(2, '0')}-'
         '${localDate.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _TrashListView extends StatelessWidget {
+  const _TrashListView({
+    required this.notes,
+    required this.isLoading,
+    required this.onRestore,
+    required this.onDeletePermanently,
+  });
+
+  final List<Note> notes;
+  final bool isLoading;
+  final ValueChanged<Note> onRestore;
+  final ValueChanged<Note> onDeletePermanently;
+
+  @override
+  Widget build(BuildContext context) {
+    if (notes.isEmpty) {
+      return const _EmptyTrashView();
+    }
+
+    return ListView.builder(
+      itemCount: notes.length,
+      itemBuilder: (context, index) {
+        final note = notes[index];
+
+        return ListTile(
+          title: Text(
+            deriveNoteTitle(note.content),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text('Deleted ${_formatDeletionDate(note.deletedAt!)}'),
+          trailing: Wrap(
+            spacing: 0,
+            children: [
+              IconButton(
+                tooltip: 'Restore note',
+                onPressed: isLoading ? null : () => onRestore(note),
+                icon: const Icon(Icons.restore),
+              ),
+              IconButton(
+                tooltip: 'Delete permanently',
+                onPressed: isLoading ? null : () => onDeletePermanently(note),
+                icon: const Icon(Icons.delete_forever_outlined),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDeletionDate(DateTime date) {
+    final localDate = date.toLocal();
+    final now = DateTime.now();
+
+    if (localDate.year == now.year &&
+        localDate.month == now.month &&
+        localDate.day == now.day) {
+      return '${localDate.hour.toString().padLeft(2, '0')}:'
+          '${localDate.minute.toString().padLeft(2, '0')}';
+    }
+
+    return '${localDate.year}-'
+        '${localDate.month.toString().padLeft(2, '0')}-'
+        '${localDate.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _EmptyTrashView extends StatelessWidget {
+  const _EmptyTrashView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline, size: 48),
+            SizedBox(height: 16),
+            Text('Trash is empty'),
+          ],
+        ),
+      ),
+    );
   }
 }
 

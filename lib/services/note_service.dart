@@ -73,6 +73,15 @@ class NoteService {
     return restored > 0;
   }
 
+  Future<bool> permanentlyDeleteNote(String id) async {
+    final deleted = await _notesDao.permanentlyDelete(id);
+    return deleted > 0;
+  }
+
+  Future<int> permanentlyDeleteAllNotes() {
+    return _notesDao.permanentlyDeleteAll();
+  }
+
   // Tags
 
   Future<List<Tag>> getAllTags() {

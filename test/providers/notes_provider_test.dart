@@ -1,3 +1,6 @@
+// Copyright 2026 WITHLET11 <withlet11@gmail.com>
+// SPDX-License-Identifier: MIT
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
