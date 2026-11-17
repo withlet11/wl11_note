@@ -38,6 +38,7 @@ dependencies:
   path: ^1.9.1
   uuid: ^4.6.0
   flutter_markdown_plus: ^1.0.12
+  file_picker: ^13.4.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

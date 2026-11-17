@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../models/note.dart';
 import '../models/tag.dart';
 import '../providers/notes_provider.dart';
+import '../services/markdown_export_service.dart';
 import '../utils/markdown_formatting.dart';
 import '../utils/note_title.dart';
 
@@ -39,6 +40,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
 
   final _editorFocusNode = FocusNode();
   final _controller = TextEditingController();
+  final _markdownExportService = MarkdownExportService();
 
   Timer? _debounce;
   String? _editingNoteId;
@@ -47,6 +49,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
   bool _isPreview = false;
   bool _isSaving = false;
   Object? _saveError;
+  bool _isExporting = false;
 
   @override
   void dispose() {
@@ -148,6 +151,46 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
       context: context,
       builder: (_) => _AddTagDialog(noteId: noteId),
     );
+  }
+
+  Future<void> _exportNote(Note note) async {
+    if (_isExporting) return;
+
+    final canSave = await savePendingChanges();
+
+    if (!canSave || !mounted) return;
+
+    setState(() {
+      _isExporting = true;
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final result = await _markdownExportService.exportNote(
+        note.copyWith(content: _controller.text),
+      );
+
+      if (!mounted) return;
+
+      if (result != null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Note exported successfully.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not export note: $error')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
   }
 
   Future<void> _deleteNote(Note note) async {
@@ -364,6 +407,19 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                             });
                           },
                     child: Text(_isPreview ? 'Edit' : 'Preview'),
+                  ),
+                  IconButton(
+                    tooltip: 'Export as Markdown',
+                    onPressed: note == null || _isExporting
+                        ? null
+                        : () => _exportNote(note),
+                    icon: _isExporting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.file_download_outlined),
                   ),
                   IconButton(
                     tooltip: 'Move to Trash',
