@@ -107,6 +107,56 @@ void main() {
 
       expect(controller.text, '**Hello** *world*');
 
+      // Multi-line formatting: bulleted list.
+      const multilineText = 'first\nsecond\nthird';
+
+      controller.value = const TextEditingValue(
+        text: multilineText,
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: multilineText.length,
+        ),
+      );
+
+      await tester.tap(find.byTooltip('Bulleted list (Ctrl+Shift+8)'));
+      await tester.pump();
+
+      expect(controller.text, '- first\n- second\n- third');
+
+      // Multi-line formatting: numbered list.
+      controller.value = const TextEditingValue(
+        text: multilineText,
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: multilineText.length,
+        ),
+      );
+
+      await tester.tap(find.byTooltip('Numbered list (Ctrl+Shift+7)'));
+      await tester.pump();
+
+      expect(controller.text, '1. first\n2. second\n3. third');
+
+      // Multi-line formatting: blockquote.
+      controller.value = const TextEditingValue(
+        text: multilineText,
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: multilineText.length,
+        ),
+      );
+
+      await tester.tap(find.byTooltip('Blockquote'));
+      await tester.pump();
+
+      expect(controller.text, '> first\n> second\n> third');
+
+      // Restore the content used by the persistence assertion.
+      controller.value = const TextEditingValue(
+        text: '**Hello** *world*',
+        selection: TextSelection.collapsed(offset: 17),
+      );
+
       // Preview mode hides the formatting toolbar.
       await tester.tap(find.text('Preview'));
       await tester.pump();
