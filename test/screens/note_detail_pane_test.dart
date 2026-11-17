@@ -99,14 +99,27 @@ void main() {
 
       final controller = tester.widget<TextField>(editorFinder).controller!;
 
-      // Toolbar formatting: bold selected text.
+      // Select "Hello".
       controller.selection = const TextSelection(
         baseOffset: 0,
         extentOffset: 5,
       );
 
+      // The formatting toolbar is initially hidden.
+      expect(find.byTooltip('Bold (Ctrl+B)'), findsNothing);
+
+      // Open the popup.
+      await tester.tap(find.byTooltip('Text formatting'));
+      await tester.pump();
+
+      expect(find.byTooltip('Bold (Ctrl+B)'), findsOneWidget);
+
+      // Apply bold formatting.
       await tester.tap(find.byTooltip('Bold (Ctrl+B)'));
       await tester.pump();
+
+      // The popup should close after formatting.
+      expect(find.byTooltip('Bold (Ctrl+B)'), findsNothing);
 
       expect(controller.text, '**Hello** world');
       expect(
@@ -140,6 +153,9 @@ void main() {
         ),
       );
 
+      await tester.tap(find.byTooltip('Text formatting'));
+      await tester.pump();
+
       await tester.tap(find.byTooltip('Bulleted list (Ctrl+Shift+8)'));
       await tester.pump();
 
@@ -154,6 +170,9 @@ void main() {
         ),
       );
 
+      await tester.tap(find.byTooltip('Text formatting'));
+      await tester.pump();
+
       await tester.tap(find.byTooltip('Numbered list (Ctrl+Shift+7)'));
       await tester.pump();
 
@@ -167,6 +186,9 @@ void main() {
           extentOffset: multilineText.length,
         ),
       );
+
+      await tester.tap(find.byTooltip('Text formatting'));
+      await tester.pump();
 
       await tester.tap(find.byTooltip('Blockquote'));
       await tester.pump();

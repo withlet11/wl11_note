@@ -25,6 +25,10 @@ class _FormatNoteIntent extends Intent {
   final MarkdownFormat format;
 }
 
+class _DismissFormattingToolbarIntent extends Intent {
+  const _DismissFormattingToolbarIntent();
+}
+
 class NoteDetailPane extends StatefulWidget {
   const NoteDetailPane({
     super.key,
@@ -47,6 +51,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
   final _editorFocusNode = FocusNode();
   final _controller = TextEditingController();
   final _defaultMarkdownExportService = MarkdownExportService();
+  final _formattingMenuController = MenuController();
 
   MarkdownExportService get _markdownExportService =>
       widget.markdownExportService ?? _defaultMarkdownExportService;
@@ -348,6 +353,35 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
     _onChanged(_controller.text);
   }
 
+  Widget _buildFormattingMenu(Note? note) {
+    return MenuAnchor(
+      controller: _formattingMenuController,
+      menuChildren: [
+        _NoteFormattingToolbar(onFormat: _applyFormattingFromToolbar),
+      ],
+      builder: (context, controller, child) {
+        return IconButton(
+          tooltip: 'Text formatting',
+          onPressed: note == null || _isPreview
+              ? null
+              : () {
+                  if (controller.isOpen) {
+                    controller.close();
+                  } else {
+                    controller.open();
+                  }
+                },
+          icon: const Icon(Icons.text_fields),
+        );
+      },
+    );
+  }
+
+  void _applyFormattingFromToolbar(MarkdownFormat format) {
+    _formattingMenuController.close();
+    _applyFormatting(format);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
@@ -368,6 +402,8 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
             _FormatNoteIntent(MarkdownFormat.numberedList),
         SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
             _FormatNoteIntent(MarkdownFormat.inlineCode),
+        SingleActivator(LogicalKeyboardKey.escape):
+            _DismissFormattingToolbarIntent(),
       },
       child: Actions(
         actions: {
@@ -383,6 +419,13 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
               return null;
             },
           ),
+          _DismissFormattingToolbarIntent:
+              CallbackAction<_DismissFormattingToolbarIntent>(
+                onInvoke: (_) {
+                  _formattingMenuController.close();
+                  return null;
+                },
+              ),
         },
         child: Consumer<NotesProvider>(
           builder: (context, provider, child) {
@@ -417,6 +460,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                           },
                     child: Text(_isPreview ? 'Edit' : 'Preview'),
                   ),
+                  _buildFormattingMenu(note),
                   IconButton(
                     tooltip: 'Export as Markdown',
                     onPressed: note == null || _isExporting
@@ -436,13 +480,6 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                         ? null
                         : () => _deleteNote(note),
                     icon: const Icon(Icons.delete_outline),
-                  ),
-                  IconButton(
-                    tooltip: 'Manage note tags',
-                    onPressed: note == null
-                        ? null
-                        : () => _showTagDialog(context, note.id),
-                    icon: const Icon(Icons.sell_outlined),
                   ),
                   if (_isSaving)
                     const Padding(
@@ -478,24 +515,11 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                     )
                   : Column(
                       children: [
-                        _NoteTagsRow(
-                          tags: provider.tagsForNote(note.id),
-                          onAdd: () => _showTagDialog(context, note.id),
-                          onRemove: (tagId) {
-                            unawaited(
-                              provider
-                                  .removeTag(note.id, tagId)
-                                  .catchError((Object error) => false),
-                            );
-                          },
-                        ),
-                        if (!_isPreview)
-                          _NoteFormattingToolbar(onFormat: _applyFormatting),
                         Expanded(
                           child: _isPreview
                               ? _buildMarkdownPreview(context)
                               : Padding(
-                                  padding: const EdgeInsets.all(24),
+                                  padding: const EdgeInsets.all(12),
                                   child: TextField(
                                     controller: _controller,
                                     focusNode: _editorFocusNode,
@@ -510,6 +534,17 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                                     ),
                                   ),
                                 ),
+                        ),
+                        _NoteTagsRow(
+                          tags: provider.tagsForNote(note.id),
+                          onAdd: () => _showTagDialog(context, note.id),
+                          onRemove: (tagId) {
+                            unawaited(
+                              provider
+                                  .removeTag(note.id, tagId)
+                                  .catchError((Object error) => false),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -611,14 +646,32 @@ class _NoteTagsRow extends StatelessWidget {
             (tag) => InputChip(
               label: Text(tag.name),
               onDeleted: () => onRemove(tag.id),
-              visualDensity: VisualDensity.compact,
+              selected: true,
+              showCheckmark: false,
+              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              shape: const StadiumBorder(),
+              color: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Theme.of(context).colorScheme.primary;
+                }
+                return null;
+              }),
+              labelPadding: const EdgeInsets.only(left: 8, right: 0),
+              labelStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+              deleteIconColor: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
           ActionChip(
-            avatar: const Icon(Icons.add, size: 18),
+            avatar: const Icon(Icons.add, size: 16),
             label: const Text('Add tag'),
+            labelPadding: const EdgeInsets.only(left: 0, right: 8),
             onPressed: onAdd,
-            visualDensity: VisualDensity.compact,
+            visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            shape: const StadiumBorder(),
           ),
         ],
       ),
