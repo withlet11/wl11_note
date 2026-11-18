@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WL11 Note
+Comment=Cloud notes application
+Exec=wl11_note
+Icon=wl11_note
+Terminal=false
+Categories=Office;Utility;
+
