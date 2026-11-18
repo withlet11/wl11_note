@@ -48,7 +48,7 @@ class NotesProvider extends ChangeNotifier {
 
         final matchesTags =
             _selectedTagIds.isEmpty ||
-            _selectedTagIds.any(
+            _selectedTagIds.every(
               (tagId) => _noteIdsByTag[tagId]?.contains(note.id) ?? false,
             );
 

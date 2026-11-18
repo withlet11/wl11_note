@@ -160,7 +160,7 @@ class _MobileLayout extends StatelessWidget {
   }
 }
 
-enum _NoteListView { notes, trash }
+enum _NoteListView { notes, menu, trash }
 
 class NoteListPane extends StatefulWidget {
   const NoteListPane({
@@ -300,7 +300,6 @@ class _NoteListPaneState extends State<NoteListPane> {
     return Consumer<NotesProvider>(
       builder: (context, provider, child) {
         final notes = provider.filteredNotes;
-        final isTrash = _view == _NoteListView.trash;
 
         final hasFilters =
             provider.searchQuery.isNotEmpty ||
@@ -308,19 +307,47 @@ class _NoteListPaneState extends State<NoteListPane> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('wl11_note'),
+            title: Text(
+              _view == _NoteListView.trash
+                  ? 'Trash'
+                  : _view == _NoteListView.menu
+                  ? 'Settings'
+                  : 'WL11note',
+            ),
             automaticallyImplyLeading: false,
+            leading: _view == _NoteListView.notes
+                ? null
+                : IconButton(
+                    tooltip: 'Back',
+                    onPressed: () {
+                      setState(() {
+                        _view = _view == _NoteListView.trash
+                            ? _NoteListView.menu
+                            : _NoteListView.notes;
+                      });
+                    },
+                    icon: const Icon(Icons.arrow_back),
+                  ),
             actions: [
-              IconButton(
-                tooltip: 'New note',
-                onPressed: provider.isLoading ? null : widget.onCreateNote,
-                icon: const Icon(Icons.add),
-              ),
-              IconButton(
-                tooltip: 'Manage tags',
-                onPressed: () => _showTagManagementDialog(context),
-                icon: const Icon(Icons.sell_outlined),
-              ),
+              if (_view == _NoteListView.notes) ...[
+                IconButton(
+                  tooltip: 'New note',
+                  onPressed: provider.isLoading ? null : widget.onCreateNote,
+                  icon: const Icon(Icons.add),
+                ),
+                IconButton(
+                  tooltip: 'Manage tags',
+                  onPressed: () => _showTagManagementDialog(context),
+                  icon: const Icon(Icons.sell_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Menu',
+                  onPressed: () {
+                    setState(() => _view = _NoteListView.menu);
+                  },
+                  icon: const Icon(Icons.menu),
+                ),
+              ],
               if (_view == _NoteListView.trash &&
                   provider.deletedNotes.isNotEmpty)
                 IconButton(
@@ -332,30 +359,7 @@ class _NoteListPaneState extends State<NoteListPane> {
           ),
           body: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _viewButton(
-                        label: 'Notes',
-                        icon: Icons.note_outlined,
-                        view: _NoteListView.notes,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _viewButton(
-                        label: 'Trash',
-                        icon: Icons.delete_outline,
-                        view: _NoteListView.trash,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (!isTrash) ...[
+              if (_view == _NoteListView.notes) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
                   child: TextField(
@@ -376,95 +380,60 @@ class _NoteListPaneState extends State<NoteListPane> {
                     ),
                   ),
                 ),
-
-                if (provider.tags.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        ...provider.tags.map(
-                          (tag) => FilterChip(
-                            label: Text(tag.name),
-                            selected: provider.isTagSelected(tag.id),
-                            onSelected: (_) {
-                              provider.toggleTagFilter(tag.id);
-                            },
-                          ),
-                        ),
-                        if (provider.selectedTagIds.isNotEmpty)
-                          TextButton(
-                            onPressed: provider.clearTagFilters,
-                            child: const Text('Clear'),
-                          ),
-                      ],
-                    ),
-                  ),
               ],
 
               Expanded(
-                child: isTrash
-                    ? _TrashListView(
-                        notes: provider.deletedNotes,
-                        isLoading: provider.isLoading,
-                        onRestore: (note) =>
-                            _restoreNote(context, provider, note),
-                        onDeletePermanently: (note) =>
-                            _permanentlyDeleteNote(context, provider, note),
-                      )
-                    : notes.isEmpty
-                    ? _FilteredEmptyView(
-                        hasFilters: hasFilters,
-                        onClear: () {
-                          provider.setSearchQuery('');
-                          provider.clearTagFilters();
-                        },
-                      )
-                    : ListView.builder(
-                        itemCount: notes.length,
-                        itemBuilder: (context, index) {
-                          final note = notes[index];
+                child: switch (_view) {
+                  _NoteListView.notes =>
+                    notes.isEmpty
+                        ? _FilteredEmptyView(
+                            hasFilters: hasFilters,
+                            onClear: () {
+                              provider.setSearchQuery('');
+                              provider.clearTagFilters();
+                            },
+                          )
+                        : ListView.builder(
+                            itemCount: notes.length,
+                            itemBuilder: (context, index) {
+                              final note = notes[index];
 
-                          return _NoteListTile(
-                            note: note,
-                            tags: provider.tagsForNote(note.id),
-                            selectedTagIds: provider.selectedTagIds,
-                            selected: note.id == provider.selectedNoteId,
-                            onTap: () => widget.onSelectNote(note.id),
-                            onTagTap: provider.toggleTagFilter,
-                          );
+                              return _NoteListTile(
+                                note: note,
+                                tags: provider.tagsForNote(note.id),
+                                selectedTagIds: provider.selectedTagIds,
+                                selected: note.id == provider.selectedNoteId,
+                                onTap: () => widget.onSelectNote(note.id),
+                                onTagTap: provider.toggleTagFilter,
+                              );
+                            },
+                          ),
+                  _NoteListView.menu => ListView(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.delete_outline),
+                        title: const Text('Trash'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          setState(() => _view = _NoteListView.trash);
                         },
                       ),
+                    ],
+                  ),
+                  _NoteListView.trash => _TrashListView(
+                    notes: provider.deletedNotes,
+                    isLoading: provider.isLoading,
+                    onRestore: (note) => _restoreNote(context, provider, note),
+                    onDeletePermanently: (note) =>
+                        _permanentlyDeleteNote(context, provider, note),
+                  ),
+                },
               ),
             ],
           ),
         );
       },
     );
-  }
-
-  Widget _viewButton({
-    required String label,
-    required IconData icon,
-    required _NoteListView view,
-  }) {
-    final selected = _view == view;
-
-    return selected
-        ? FilledButton.tonalIcon(
-            onPressed: () => setState(() => _view = view),
-            icon: Icon(icon),
-            label: Text(label),
-          )
-        : OutlinedButton.icon(
-            onPressed: () => setState(() => _view = view),
-            icon: Icon(icon),
-            label: Text(label),
-          );
   }
 }
 
@@ -534,16 +503,27 @@ class _NoteListTile extends StatelessWidget {
             const SizedBox(height: 6),
             Wrap(
               spacing: 4,
-              runSpacing: 0,
+              runSpacing: 2,
               children: tags.map((tag) {
-                return FilterChip(
-                  label: Text(tag.name),
-                  selected: selectedTagIds.contains(tag.id),
-                  onSelected: (_) => onTagTap(tag.id),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: EdgeInsets.zero,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selectedTagIds.contains(tag.id)
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    tag.name,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: selectedTagIds.contains(tag.id)
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ),
                 );
               }).toList(),
             ),
@@ -829,7 +809,15 @@ class _TagManagementDialog extends StatelessWidget {
 
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    provider.isTagSelected(tag.id)
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                  ),
                   title: Text(tag.name),
+                  onTap: provider.isLoading
+                      ? null
+                      : () => provider.toggleTagFilter(tag.id),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -856,6 +844,17 @@ class _TagManagementDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        Consumer<NotesProvider>(
+          builder: (context, provider, child) {
+            return TextButton(
+              onPressed:
+                  provider.tags.isEmpty || provider.selectedTagIds.isEmpty
+                  ? null
+                  : provider.clearTagFilters,
+              child: const Text('Clear'),
+            );
+          },
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Close'),

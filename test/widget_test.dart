@@ -53,7 +53,7 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('wl11_note'), findsOneWidget);
+      expect(find.text('WL11note'), findsOneWidget);
       expect(find.text('No notes yet'), findsOneWidget);
       expect(find.text('Create a note to get started.'), findsOneWidget);
       expect(find.text('Select a note or create a new one.'), findsOneWidget);
