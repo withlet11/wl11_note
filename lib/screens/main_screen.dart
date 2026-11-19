@@ -501,6 +501,37 @@ class _NoteListPaneState extends State<NoteListPane> {
                           ),
                         ],
                       ),
+
+                      ExpansionTile(
+                        leading: const Icon(Icons.text_fields),
+                        title: const Text('Text size'),
+                        children: [
+                          Consumer<ThemeProvider>(
+                            builder: (context, provider, child) {
+                              return RadioGroup<AppTextSize>(
+                                groupValue: provider.textSize,
+                                onChanged: (size) {
+                                  if (size != null) {
+                                    unawaited(provider.setTextSize(size));
+                                  }
+                                },
+                                child: Column(
+                                  children: AppTextSize.values.map((size) {
+                                    return RadioListTile<AppTextSize>(
+                                      title: Text(switch (size) {
+                                        AppTextSize.small => 'Small',
+                                        AppTextSize.medium => 'Medium',
+                                        AppTextSize.large => 'Large',
+                                      }),
+                                      value: size,
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       ListTile(
                         leading: const Icon(Icons.delete_outline),
                         title: const Text('Trash'),

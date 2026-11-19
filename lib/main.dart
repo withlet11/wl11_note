@@ -61,9 +61,45 @@ class Wl11NoteApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: provider.themeMode,
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+
+            return MediaQuery(
+              data: mediaQuery.copyWith(
+                textScaler: _PreferenceTextScaler(
+                  mediaQuery.textScaler,
+                  provider.textSize.scaleFactor,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           home: const MainScreen(),
         );
       },
     );
   }
+}
+
+class _PreferenceTextScaler extends TextScaler {
+  const _PreferenceTextScaler(this.parent, this.factor);
+
+  final TextScaler parent;
+  final double factor;
+
+  @override
+  double scale(double fontSize) => parent.scale(fontSize) * factor;
+
+  @override
+  // ignore: deprecated_member_use
+  double get textScaleFactor => parent.textScaleFactor * factor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _PreferenceTextScaler &&
+      other.parent == parent &&
+      other.factor == factor;
+
+  @override
+  int get hashCode => Object.hash(parent, factor);
 }
