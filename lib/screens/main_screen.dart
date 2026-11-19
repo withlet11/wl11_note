@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/note.dart';
 import '../models/tag.dart';
 import '../providers/notes_provider.dart';
+import '../providers/theme_provider.dart';
 import '../utils/note_title.dart';
 import 'note_detail_pane.dart';
 
@@ -470,6 +471,36 @@ class _NoteListPaneState extends State<NoteListPane> {
                           ),
                   _NoteListView.menu => ListView(
                     children: [
+                      ExpansionTile(
+                        leading: const Icon(Icons.palette_outlined),
+                        title: const Text('Appearance'),
+                        children: [
+                          Consumer<ThemeProvider>(
+                            builder: (context, provider, child) {
+                              return RadioGroup<ThemeMode>(
+                                groupValue: provider.themeMode,
+                                onChanged: (mode) {
+                                  if (mode != null) {
+                                    unawaited(provider.setThemeMode(mode));
+                                  }
+                                },
+                                child: Column(
+                                  children: ThemeMode.values.map((mode) {
+                                    return RadioListTile<ThemeMode>(
+                                      title: Text(switch (mode) {
+                                        ThemeMode.system => 'System default',
+                                        ThemeMode.light => 'Light',
+                                        ThemeMode.dark => 'Dark',
+                                      }),
+                                      value: mode,
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       ListTile(
                         leading: const Icon(Icons.delete_outline),
                         title: const Text('Trash'),
