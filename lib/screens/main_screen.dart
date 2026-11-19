@@ -162,6 +162,45 @@ class _MobileLayout extends StatelessWidget {
 
 enum _NoteListView { notes, menu, trash }
 
+enum _NoteSortOption {
+  updatedDescending(
+    'Updated date (newest first)',
+    NoteSortField.updatedAt,
+    SortDirection.descending,
+  ),
+  updatedAscending(
+    'Updated date (oldest first)',
+    NoteSortField.updatedAt,
+    SortDirection.ascending,
+  ),
+  titleAscending(
+    'Note name (A–Z)',
+    NoteSortField.title,
+    SortDirection.ascending,
+  ),
+  titleDescending(
+    'Note name (Z–A)',
+    NoteSortField.title,
+    SortDirection.descending,
+  ),
+  createdDescending(
+    'Created date (newest first)',
+    NoteSortField.createdAt,
+    SortDirection.descending,
+  ),
+  createdAscending(
+    'Created date (oldest first)',
+    NoteSortField.createdAt,
+    SortDirection.ascending,
+  );
+
+  const _NoteSortOption(this.label, this.field, this.direction);
+
+  final String label;
+  final NoteSortField field;
+  final SortDirection direction;
+}
+
 class NoteListPane extends StatefulWidget {
   const NoteListPane({
     super.key,
@@ -330,6 +369,27 @@ class _NoteListPaneState extends State<NoteListPane> {
                   ),
             actions: [
               if (_view == _NoteListView.notes) ...[
+                PopupMenuButton<_NoteSortOption>(
+                  tooltip: 'Sort notes',
+                  icon: const Icon(Icons.sort),
+                  onSelected: (option) {
+                    provider.setSorting(
+                      field: option.field,
+                      direction: option.direction,
+                    );
+                  },
+                  itemBuilder: (context) {
+                    return _NoteSortOption.values.map((option) {
+                      return CheckedPopupMenuItem<_NoteSortOption>(
+                        value: option,
+                        checked:
+                            provider.sortField == option.field &&
+                            provider.sortDirection == option.direction,
+                        child: Text(option.label),
+                      );
+                    }).toList();
+                  },
+                ),
                 IconButton(
                   tooltip: 'New note',
                   onPressed: provider.isLoading ? null : widget.onCreateNote,

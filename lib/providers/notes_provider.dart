@@ -2,21 +2,55 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/note.dart' show Note;
 import '../models/tag.dart';
 import '../services/note_service.dart';
 import '../utils/note_title.dart';
 
+enum NoteSortField { updatedAt, title, createdAt }
+
+enum SortDirection { ascending, descending }
+
 class NotesProvider extends ChangeNotifier {
   NotesProvider({NoteService? noteService})
     : _noteService = noteService ?? NoteService();
+
+  static const _sortFieldKey = 'note_sort_field';
+  static const _sortDirectionKey = 'note_sort_direction';
 
   final NoteService _noteService;
 
   List<Note> _activeNotes = [];
   List<Note> _deletedNotes = [];
   List<Tag> _tags = [];
+
+  // Sorting
+
+  NoteSortField _sortField = NoteSortField.updatedAt;
+  SortDirection _sortDirection = SortDirection.descending;
+
+  NoteSortField get sortField => _sortField;
+
+  SortDirection get sortDirection => _sortDirection;
+
+  Future<void> setSorting({
+    required NoteSortField field,
+    required SortDirection direction,
+  }) async {
+    if (_sortField == field && _sortDirection == direction) return;
+
+    _sortField = field;
+    _sortDirection = direction;
+
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(_sortFieldKey, field.name);
+    await prefs.setString(_sortDirectionKey, direction.name);
+  }
 
   // Search and filtering
 
@@ -39,22 +73,40 @@ class NotesProvider extends ChangeNotifier {
   List<Note> get filteredNotes {
     final query = _searchQuery.trim().toLowerCase();
 
-    return List.unmodifiable(
-      _activeNotes.where((note) {
-        final matchesQuery =
-            query.isEmpty ||
-            deriveNoteTitle(note.content).toLowerCase().contains(query) ||
-            note.content.toLowerCase().contains(query);
+    final notes = _activeNotes.where((note) {
+      final matchesQuery =
+          query.isEmpty ||
+          deriveNoteTitle(note.content).toLowerCase().contains(query) ||
+          note.content.toLowerCase().contains(query);
 
-        final matchesTags =
-            _selectedTagIds.isEmpty ||
-            _selectedTagIds.every(
-              (tagId) => _noteIdsByTag[tagId]?.contains(note.id) ?? false,
-            );
+      final matchesTags =
+          _selectedTagIds.isEmpty ||
+          _selectedTagIds.every(
+            (tagId) => _noteIdsByTag[tagId]?.contains(note.id) ?? false,
+          );
 
-        return matchesQuery && matchesTags;
-      }),
-    );
+      return matchesQuery && matchesTags;
+    }).toList();
+
+    notes.sort((a, b) {
+      final comparison = switch (_sortField) {
+        NoteSortField.updatedAt => a.updatedAt.compareTo(b.updatedAt),
+        NoteSortField.createdAt => a.createdAt.compareTo(b.createdAt),
+        NoteSortField.title => deriveNoteTitle(
+          a.content,
+        ).toLowerCase().compareTo(deriveNoteTitle(b.content).toLowerCase()),
+      };
+
+      if (comparison == 0) {
+        return a.id.compareTo(b.id);
+      }
+
+      return _sortDirection == SortDirection.ascending
+          ? comparison
+          : -comparison;
+    });
+
+    return List.unmodifiable(notes);
   }
 
   void setSearchQuery(String query) {
@@ -116,7 +168,10 @@ class NotesProvider extends ChangeNotifier {
 
   // Initialization and refresh
 
-  Future<void> initialize() => _run(_refreshAll);
+  Future<void> initialize() => _run(() async {
+    await loadSortingPreferences();
+    await _refreshAll();
+  });
 
   Future<void> refresh() => _run(_refreshAll);
 
@@ -367,6 +422,25 @@ class NotesProvider extends ChangeNotifier {
     if (_error == null) return;
 
     _error = null;
+    notifyListeners();
+  }
+
+  Future<void> loadSortingPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedField = prefs.getString(_sortFieldKey);
+    final savedDirection = prefs.getString(_sortDirectionKey);
+
+    _sortField = NoteSortField.values.firstWhere(
+      (field) => field.name == savedField,
+      orElse: () => NoteSortField.updatedAt,
+    );
+
+    _sortDirection = SortDirection.values.firstWhere(
+      (direction) => direction.name == savedDirection,
+      orElse: () => SortDirection.descending,
+    );
+
     notifyListeners();
   }
 }
