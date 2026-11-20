@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'l10n/generated/app_localizations.dart';
 import 'providers/notes_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/main_screen.dart';
@@ -45,7 +46,12 @@ class Wl11NoteApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, provider, child) {
         return MaterialApp(
-          title: 'WL11note',
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+
+          locale: provider.appLanguage.locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.blue,

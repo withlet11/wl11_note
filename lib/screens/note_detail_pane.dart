@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:wl11_note/l10n/generated/app_localizations.dart';
 
 import '../models/note.dart';
 import '../models/tag.dart';
@@ -187,15 +188,18 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
 
       if (!mounted) return;
 
+      final l10n = AppLocalizations.of(context)!;
+
       if (result != null) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Note exported successfully.')),
+          SnackBar(content: Text(l10n.noteExporteNotification)),
         );
       }
     } catch (error) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not export note: $error')),
+          SnackBar(content: Text(l10n.noteExportError(error.toString()))),
         );
       }
     } finally {
@@ -221,9 +225,11 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
 
       if (!mounted) return;
 
+      final l10n = AppLocalizations.of(context)!;
+
       if (!deleted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Could not delete note.')),
+          SnackBar(content: Text(l10n.couldNotDeleteNote)),
         );
         return;
       }
@@ -231,9 +237,9 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         SnackBar(
-          content: Text('"$title" moved to Trash'),
+          content: Text(l10n.noteMoveToTrashNotification(title)),
           action: SnackBarAction(
-            label: 'Undo',
+            label: l10n.undo,
             onPressed: () {
               unawaited(
                 _restoreDeletedNote(provider, note.id, title, messenger),
@@ -244,8 +250,10 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
       );
     } catch (error) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not delete note: $error')),
+          SnackBar(content: Text(l10n.noteDeleteError(error.toString()))),
         );
       }
     }
@@ -262,17 +270,23 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
 
       if (!messenger.mounted) return;
 
+      final l10n = AppLocalizations.of(context)!;
+
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            restored ? '"$title" restored' : 'Could not restore note.',
+            restored
+                ? l10n.restoredNotification(title)
+                : l10n.couldNotRestoreNote,
           ),
         ),
       );
     } catch (error) {
       if (messenger.mounted) {
+        final l10n = AppLocalizations.of(context)!;
+
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not restore note: $error')),
+          SnackBar(content: Text(l10n.noteRestoreError(error.toString()))),
         );
       }
     }
@@ -360,8 +374,10 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
         _NoteFormattingToolbar(onFormat: _applyFormattingFromToolbar),
       ],
       builder: (context, controller, child) {
+        final l10n = AppLocalizations.of(context)!;
+
         return IconButton(
-          tooltip: 'Text formatting',
+          tooltip: l10n.textFormattingTooltip,
           onPressed: note == null || _isPreview
               ? null
               : () {
@@ -432,19 +448,21 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
             final note = provider.selectedNote;
             _loadNote(note);
 
+            final l10n = AppLocalizations.of(context)!;
+
             return Scaffold(
               appBar: AppBar(
                 automaticallyImplyLeading: false,
                 leading: widget.showBackButton
                     ? IconButton(
-                        tooltip: 'Back to notes',
+                        tooltip: l10n.backToNotesTooltip,
                         onPressed: widget.onBack,
                         icon: const Icon(Icons.arrow_back),
                       )
                     : null,
                 title: Text(
                   note == null
-                      ? 'No note selected'
+                      ? l10n.noNoteSelected
                       : deriveNoteTitle(_controller.text),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -458,11 +476,11 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                               _isPreview = !_isPreview;
                             });
                           },
-                    child: Text(_isPreview ? 'Edit' : 'Preview'),
+                    child: Text(_isPreview ? l10n.edit : l10n.preview),
                   ),
                   _buildFormattingMenu(note),
                   IconButton(
-                    tooltip: 'Export as Markdown',
+                    tooltip: l10n.exportAsMarkdownTooltip,
                     onPressed: note == null || _isExporting
                         ? null
                         : () => _exportNote(note),
@@ -475,7 +493,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                         : const Icon(Icons.file_download_outlined),
                   ),
                   IconButton(
-                    tooltip: 'Move to Trash',
+                    tooltip: l10n.moveToTrashTooltip,
                     onPressed: note == null || provider.isLoading
                         ? null
                         : () => _deleteNote(note),
@@ -494,7 +512,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                     )
                   else if (_saveError != null)
                     IconButton(
-                      tooltip: 'Save failed. Retry',
+                      tooltip: l10n.saveFailedRetryTooltip,
                       onPressed: () {
                         unawaited(savePendingChanges().then((_) {}));
                       },
@@ -510,9 +528,7 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                 ],
               ),
               body: note == null
-                  ? const Center(
-                      child: Text('Select a note or create a new one.'),
-                    )
+                  ? Center(child: Text(l10n.selectNoteOrCreateNewOne))
                   : Column(
                       children: [
                         Expanded(
@@ -528,9 +544,9 @@ class NoteDetailPaneState extends State<NoteDetailPane> {
                                     maxLines: null,
                                     minLines: null,
                                     textAlignVertical: TextAlignVertical.top,
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       border: InputBorder.none,
-                                      hintText: 'Start writing...',
+                                      hintText: l10n.startWritingHint,
                                     ),
                                   ),
                                 ),
@@ -563,48 +579,54 @@ class _NoteFormattingToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Wrap(
         spacing: 2,
         runSpacing: 2,
         children: [
-          _button(Icons.format_bold, 'Bold (Ctrl+B)', MarkdownFormat.bold),
+          _button(Icons.format_bold, l10n.boldTooltip, MarkdownFormat.bold),
           _button(
             Icons.format_italic,
-            'Italic (Ctrl+I)',
+            l10n.italicTooltip,
             MarkdownFormat.italic,
           ),
           _button(
             Icons.strikethrough_s,
-            'Strikethrough (Ctrl+Shift+X)',
+            l10n.strikethroughTooltip,
             MarkdownFormat.strikethrough,
           ),
-          _button(Icons.link, 'Link (Ctrl+K)', MarkdownFormat.link),
+          _button(Icons.link, l10n.linkTooltip, MarkdownFormat.link),
           _button(
             Icons.format_list_bulleted,
-            'Bulleted list (Ctrl+Shift+8)',
+            l10n.bulletedListTooltip,
             MarkdownFormat.bulletedList,
           ),
           _button(
             Icons.format_list_numbered,
-            'Numbered list (Ctrl+Shift+7)',
+            l10n.numberedListTooltip,
             MarkdownFormat.numberedList,
           ),
           _button(
             Icons.code,
-            'Inline code (Ctrl+Shift+C)',
+            l10n.inlineCodeTooltip,
             MarkdownFormat.inlineCode,
           ),
           _button(
             Icons.integration_instructions,
-            'Code block',
+            l10n.codeBlockTooltip,
             MarkdownFormat.codeBlock,
           ),
-          _button(Icons.format_quote, 'Blockquote', MarkdownFormat.blockquote),
+          _button(
+            Icons.format_quote,
+            l10n.blockquoteTooltip,
+            MarkdownFormat.blockquote,
+          ),
           _button(
             Icons.horizontal_rule,
-            'Horizontal rule',
+            l10n.horizontalRuleTooltip,
             MarkdownFormat.horizontalRule,
           ),
         ],
@@ -635,6 +657,8 @@ class _NoteTagsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
@@ -666,7 +690,7 @@ class _NoteTagsRow extends StatelessWidget {
           ),
           ActionChip(
             avatar: const Icon(Icons.add, size: 16),
-            label: const Text('Add tag'),
+            label: Text(l10n.addTag),
             labelPadding: const EdgeInsets.only(left: 0, right: 8),
             onPressed: onAdd,
             visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
@@ -748,12 +772,17 @@ class _AddTagDialogState extends State<_AddTagDialog> {
   void _showError(Object error) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Could not add tag: $error')));
+    final l10n = AppLocalizations.of(context)!;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.tagAddError(error.toString()))));
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Consumer<NotesProvider>(
       builder: (context, provider, child) {
         final assignedTagIds = provider
@@ -766,7 +795,7 @@ class _AddTagDialogState extends State<_AddTagDialog> {
             .toList();
 
         return AlertDialog(
-          title: const Text('Add tag'),
+          title: Text(l10n.addTag),
           content: SizedBox(
             width: 360,
             child: Column(
@@ -774,7 +803,7 @@ class _AddTagDialogState extends State<_AddTagDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (availableTags.isNotEmpty) ...[
-                  const Text('Existing tags'),
+                  Text(l10n.existingTags),
                   const SizedBox(height: 8),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 240),
@@ -801,9 +830,9 @@ class _AddTagDialogState extends State<_AddTagDialog> {
                   onChanged: (_) => setState(() {}),
                   autofocus: availableTags.isEmpty,
                   enabled: !_isSubmitting,
-                  decoration: const InputDecoration(
-                    labelText: 'Create a new tag',
-                    hintText: 'Enter tag name',
+                  decoration: InputDecoration(
+                    labelText: l10n.createNewTag,
+                    hintText: l10n.enterTagNameHint,
                   ),
                   onSubmitted: (_) => _createAndAssignTag(),
                 ),
@@ -815,13 +844,13 @@ class _AddTagDialogState extends State<_AddTagDialog> {
               onPressed: _isSubmitting
                   ? null
                   : () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: _isSubmitting || _controller.text.trim().isEmpty
                   ? null
                   : _createAndAssignTag,
-              child: const Text('Create and add'),
+              child: Text(l10n.createAndAdd),
             ),
           ],
         );

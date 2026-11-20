@@ -1,0 +1,206 @@
+{
+  "@@locale": "en",
+  "addTag": "Add tag",
+  "appTitle": "WL11note",
+  "appearance": "Appearance",
+  "backTooltip": "Back",
+  "backToNotesTooltip": "Back to notes",
+  "blockquoteTooltip": "Blockquote",
+  "boldTooltip": "Bold (Ctrl+B)",
+  "bulletedListTooltip": "Bulleted list (Ctrl+Shift+8)",
+  "cancel": "Cancel",
+  "clear": "Clear",
+  "clearFilters": "Clear filters",
+  "clearSearchTooltip": "Clear search",
+  "clearTrashTooltip": "Clear Trash",
+  "close": "Close",
+  "codeBlockTooltip": "Code block",
+  "couldNotDeleteNote": "Could not delete note.",
+  "couldNotRestoreNote": "Could not restore note.",
+  "createNewTag": "Create a new tag",
+  "createNoteToGetStarted": "Create a note to get started.",
+  "createAndAdd": "Create and add",
+  "createdAscending": "Created date (oldest first)",
+  "createdDescending": "Created date (newest first)",
+  "dark": "Dark",
+  "delete": "Delete",
+  "deleteForever": "Delete forever",
+  "deletePermanently": "Delete permanently",
+  "deletePermanentlyTooltip": "Delete permanently",
+  "deleteTagTooltip": "Delete tag",
+  "edit": "Edit",
+  "enterTagNameHint": "Enter tag name",
+  "existingTags": "Existing tags",
+  "exportAsMarkdownTooltip": "Export as Markdown",
+  "horizontalRuleTooltip": "Horizontal rule",
+  "initializationFailed": "Initialization failed",
+  "inlineCodeTooltip": "Inline code (Ctrl+Shift+C)",
+  "italicTooltip": "Italic (Ctrl+I)",
+  "language": "Language",
+  "large": "Large",
+  "light": "Light",
+  "linkTooltip": "Link (Ctrl+K)",
+  "manageTagsTooltip": "Manage tags",
+  "medium": "Medium",
+  "menuTooltip": "Menu",
+  "moveToTrashTooltip": "Move to Trash",
+  "nameAscending": "Note name (A–Z)",
+  "nameDescending": "Note name (Z–A)",
+  "newNoteTooltip": "New note",
+  "noMatchingNotes": "No matching notes",
+  "noNoteSelected": "No note selected",
+  "noNotesYet": "No notes yet",
+  "noTagsCreatedYet": "No tags created yet.",
+  "noteDeleteError": "Could not delete note: {error}",
+  "@noteDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noteDeletedDate": "Deleted {date}",
+  "@noteDeletedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "noteExportError": "Could not export note: {error}",
+  "@noteExportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noteExporteNotification": "Note exported successfully.",
+  "noteMoveToTrashNotification": "\"{title}\" moved to Trash",
+  "@noteMoveToTrashNotification": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "notePermanentDeleteConfirmation": "Delete \"{title}\" permanently? This action cannot be undone.",
+  "@notePermanentDeleteConfirmation": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "notePermanentDeleteConfirmationTitle": "Delete permanently?",
+  "notePermanentDeleteError": "Could not delete note permanently: {error}",
+  "@notePermanentDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noteRestoreError": "Could not restore note: {error}",
+  "@noteRestoreError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "numberedListTooltip": "Numbered list (Ctrl+Shift+7)",
+  "preview": "Preview",
+  "rename": "Rename",
+  "renameTagTooltip": "Rename tag",
+  "restoreNoteTooltip": "Restore note",
+  "restoredNotification": "\"{title}\" restored",
+  "@restoredNotification": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "retry": "Retry",
+  "saveFailedRetryTooltip": "Save failed. Retry",
+  "searchNotes": "Search notes",
+  "selectNoteOrCreateNewOne": "Select a note or create a new one.",
+  "settings": "Settings",
+  "small": "Small",
+  "sortNotesTooltip": "Sort notes",
+  "startWritingHint": "Start writing...",
+  "strikethroughTooltip": "Strikethrough (Ctrl+Shift+X)",
+  "systemDefault": "System default",
+  "tagAddError": "Could not add tag: {error}",
+  "@tagAddError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "tagDeleteConfirmationDescription": "Delete \"{tagName}\"? It will be removed from all notes.",
+  "@tagDeleteConfirmationDescription": {
+    "placeholders": {
+      "tagName": {
+        "type": "String"
+      }
+    }
+  },
+  "tagDeleteConfirmationTitle": "Delete tag?",
+  "tagDeleteError": "Could not delete tag: {error}",
+  "@tagDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "tagManageDialogTitle": "Manage tags",
+  "tagName": "Tag name",
+  "tagRenameDialogTitle": "Rename tag",
+  "tagRenameError": "Could not rename tag: {error}",
+  "@tagRenameError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "textFormattingTooltip": "Text formatting",
+  "textSize": "Text size",
+  "trash": "Trash",
+  "trashClearConfirmationDescription": "Permanently delete {count, plural, zero {no notes} one {1 note} other {{count} notes}}? This action cannot be undone.",
+  "@trashClearConfirmationDescription": {
+    "description": "Count of notes that will be deleted permanently.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trashClearConfirmationTitle": "Clear Trash?",
+  "trashClearError": "Could not clear Trash: {error}",
+  "@trashClearError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "trashClearNotification": "{count, plural, zero {no notes} one {1 note} other {{count} notes}} permanently deleted",
+  "@trashClearNotification": {
+    "description": "Count of notes deleted permanently.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "trashIsEmpty": "Trash is empty",
+  "tryDifferentSearchOrTagFilter": "Try a different search or tag filter.",
+  "undo": "Undo",
+  "updatedAscending": "Updated date (oldest first)",
+  "updatedDescending": "Updated date (newest first)"
+}

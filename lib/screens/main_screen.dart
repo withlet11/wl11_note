@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/note.dart';
 import '../models/tag.dart';
 import '../providers/notes_provider.dart';
@@ -164,42 +165,26 @@ class _MobileLayout extends StatelessWidget {
 enum _NoteListView { notes, menu, trash }
 
 enum _NoteSortOption {
-  updatedDescending(
-    'Updated date (newest first)',
-    NoteSortField.updatedAt,
-    SortDirection.descending,
-  ),
-  updatedAscending(
-    'Updated date (oldest first)',
-    NoteSortField.updatedAt,
-    SortDirection.ascending,
-  ),
-  titleAscending(
-    'Note name (A–Z)',
-    NoteSortField.title,
-    SortDirection.ascending,
-  ),
-  titleDescending(
-    'Note name (Z–A)',
-    NoteSortField.title,
-    SortDirection.descending,
-  ),
-  createdDescending(
-    'Created date (newest first)',
-    NoteSortField.createdAt,
-    SortDirection.descending,
-  ),
-  createdAscending(
-    'Created date (oldest first)',
-    NoteSortField.createdAt,
-    SortDirection.ascending,
-  );
+  updatedDescending(NoteSortField.updatedAt, SortDirection.descending),
+  updatedAscending(NoteSortField.updatedAt, SortDirection.ascending),
+  titleAscending(NoteSortField.title, SortDirection.ascending),
+  titleDescending(NoteSortField.title, SortDirection.descending),
+  createdDescending(NoteSortField.createdAt, SortDirection.descending),
+  createdAscending(NoteSortField.createdAt, SortDirection.ascending);
 
-  const _NoteSortOption(this.label, this.field, this.direction);
+  const _NoteSortOption(this.field, this.direction);
 
-  final String label;
   final NoteSortField field;
   final SortDirection direction;
+
+  String label(AppLocalizations l10n) => switch (this) {
+    updatedDescending => l10n.updatedDescending,
+    updatedAscending => l10n.updatedAscending,
+    titleAscending => l10n.nameAscending,
+    titleDescending => l10n.nameDescending,
+    createdDescending => l10n.createdDescending,
+    createdAscending => l10n.createdAscending,
+  };
 }
 
 class NoteListPane extends StatefulWidget {
@@ -235,8 +220,9 @@ class _NoteListPaneState extends State<NoteListPane> {
       await provider.restoreNote(note.id);
     } catch (error) {
       if (context.mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not restore note: $error')),
+          SnackBar(content: Text(l10n.noteRestoreError(error.toString()))),
         );
       }
     }
@@ -247,23 +233,24 @@ class _NoteListPaneState extends State<NoteListPane> {
     NotesProvider provider,
     Note note,
   ) async {
+    final l10n = AppLocalizations.of(context)!;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Delete permanently?'),
+          title: Text(l10n.notePermanentDeleteConfirmationTitle),
           content: Text(
-            'Delete "${deriveNoteTitle(note.content)}" permanently? '
-            'This action cannot be undone.',
+            l10n.notePermanentDeleteConfirmation(deriveNoteTitle(note.content)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Delete permanently'),
+              child: Text(l10n.deletePermanently),
             ),
           ],
         );
@@ -277,7 +264,9 @@ class _NoteListPaneState extends State<NoteListPane> {
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not delete note permanently: $error')),
+          SnackBar(
+            content: Text(l10n.notePermanentDeleteError(error.toString())),
+          ),
         );
       }
     }
@@ -286,26 +275,23 @@ class _NoteListPaneState extends State<NoteListPane> {
   Future<void> _clearTrash() async {
     final provider = context.read<NotesProvider>();
     final count = provider.deletedNotes.length;
+    final l10n = AppLocalizations.of(context)!;
 
     if (count == 0) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Trash?'),
-        content: Text(
-          'Permanently delete $count '
-          '${count == 1 ? 'note' : 'notes'}? '
-          'This action cannot be undone.',
-        ),
+        title: Text(l10n.trashClearConfirmationTitle),
+        content: Text(l10n.trashClearConfirmationDescription(count)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete forever'),
+            child: Text(l10n.deleteForever),
           ),
         ],
       ),
@@ -319,24 +305,21 @@ class _NoteListPaneState extends State<NoteListPane> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$deletedCount '
-            '${deletedCount == 1 ? 'note' : 'notes'} permanently deleted',
-          ),
-        ),
+        SnackBar(content: Text(l10n.trashClearNotification(deletedCount))),
       );
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not clear Trash: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.trashClearError(error.toString()))),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Consumer<NotesProvider>(
       builder: (context, provider, child) {
         final notes = provider.filteredNotes;
@@ -349,16 +332,16 @@ class _NoteListPaneState extends State<NoteListPane> {
           appBar: AppBar(
             title: Text(
               _view == _NoteListView.trash
-                  ? 'Trash'
+                  ? l10n.trash
                   : _view == _NoteListView.menu
-                  ? 'Settings'
-                  : 'WL11note',
+                  ? l10n.settings
+                  : l10n.appTitle,
             ),
             automaticallyImplyLeading: false,
             leading: _view == _NoteListView.notes
                 ? null
                 : IconButton(
-                    tooltip: 'Back',
+                    tooltip: l10n.backTooltip,
                     onPressed: () {
                       setState(() {
                         _view = _view == _NoteListView.trash
@@ -371,7 +354,7 @@ class _NoteListPaneState extends State<NoteListPane> {
             actions: [
               if (_view == _NoteListView.notes) ...[
                 PopupMenuButton<_NoteSortOption>(
-                  tooltip: 'Sort notes',
+                  tooltip: l10n.sortNotesTooltip,
                   icon: const Icon(Icons.sort),
                   onSelected: (option) {
                     provider.setSorting(
@@ -386,23 +369,23 @@ class _NoteListPaneState extends State<NoteListPane> {
                         checked:
                             provider.sortField == option.field &&
                             provider.sortDirection == option.direction,
-                        child: Text(option.label),
+                        child: Text(option.label(l10n)),
                       );
                     }).toList();
                   },
                 ),
                 IconButton(
-                  tooltip: 'New note',
+                  tooltip: l10n.newNoteTooltip,
                   onPressed: provider.isLoading ? null : widget.onCreateNote,
                   icon: const Icon(Icons.add),
                 ),
                 IconButton(
-                  tooltip: 'Manage tags',
+                  tooltip: l10n.manageTagsTooltip,
                   onPressed: () => _showTagManagementDialog(context),
                   icon: const Icon(Icons.sell_outlined),
                 ),
                 IconButton(
-                  tooltip: 'Menu',
+                  tooltip: l10n.menuTooltip,
                   onPressed: () {
                     setState(() => _view = _NoteListView.menu);
                   },
@@ -412,7 +395,7 @@ class _NoteListPaneState extends State<NoteListPane> {
               if (_view == _NoteListView.trash &&
                   provider.deletedNotes.isNotEmpty)
                 IconButton(
-                  tooltip: 'Clear Trash',
+                  tooltip: l10n.clearTrashTooltip,
                   onPressed: provider.isLoading ? null : _clearTrash,
                   icon: const Icon(Icons.delete_sweep_outlined),
                 ),
@@ -427,12 +410,12 @@ class _NoteListPaneState extends State<NoteListPane> {
                     key: const ValueKey('noteSearchField'),
                     onChanged: provider.setSearchQuery,
                     decoration: InputDecoration(
-                      hintText: 'Search notes',
+                      hintText: l10n.searchNotes,
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: provider.searchQuery.isEmpty
                           ? null
                           : IconButton(
-                              tooltip: 'Clear search',
+                              tooltip: l10n.clearSearchTooltip,
                               onPressed: () => provider.setSearchQuery(''),
                               icon: const Icon(Icons.clear),
                             ),
@@ -473,7 +456,7 @@ class _NoteListPaneState extends State<NoteListPane> {
                     children: [
                       ExpansionTile(
                         leading: const Icon(Icons.palette_outlined),
-                        title: const Text('Appearance'),
+                        title: Text(l10n.appearance),
                         children: [
                           Consumer<ThemeProvider>(
                             builder: (context, provider, child) {
@@ -488,9 +471,9 @@ class _NoteListPaneState extends State<NoteListPane> {
                                   children: ThemeMode.values.map((mode) {
                                     return RadioListTile<ThemeMode>(
                                       title: Text(switch (mode) {
-                                        ThemeMode.system => 'System default',
-                                        ThemeMode.light => 'Light',
-                                        ThemeMode.dark => 'Dark',
+                                        ThemeMode.system => l10n.systemDefault,
+                                        ThemeMode.light => l10n.light,
+                                        ThemeMode.dark => l10n.dark,
                                       }),
                                       value: mode,
                                     );
@@ -504,7 +487,7 @@ class _NoteListPaneState extends State<NoteListPane> {
 
                       ExpansionTile(
                         leading: const Icon(Icons.text_fields),
-                        title: const Text('Text size'),
+                        title: Text(l10n.textSize),
                         children: [
                           Consumer<ThemeProvider>(
                             builder: (context, provider, child) {
@@ -519,9 +502,9 @@ class _NoteListPaneState extends State<NoteListPane> {
                                   children: AppTextSize.values.map((size) {
                                     return RadioListTile<AppTextSize>(
                                       title: Text(switch (size) {
-                                        AppTextSize.small => 'Small',
-                                        AppTextSize.medium => 'Medium',
-                                        AppTextSize.large => 'Large',
+                                        AppTextSize.small => l10n.small,
+                                        AppTextSize.medium => l10n.medium,
+                                        AppTextSize.large => l10n.large,
                                       }),
                                       value: size,
                                     );
@@ -532,9 +515,38 @@ class _NoteListPaneState extends State<NoteListPane> {
                           ),
                         ],
                       ),
+
+                      ExpansionTile(
+                        leading: const Icon(Icons.language),
+                        title: Text(l10n.language),
+                        children: [
+                          Consumer<ThemeProvider>(
+                            builder: (context, provider, child) {
+                              return RadioGroup<AppLanguage>(
+                                groupValue: provider.appLanguage,
+                                onChanged: (language) {
+                                  if (language != null) {
+                                    unawaited(
+                                      provider.setAppLanguage(language),
+                                    );
+                                  }
+                                },
+                                child: Column(
+                                  children: AppLanguage.values.map((language) {
+                                    return RadioListTile<AppLanguage>(
+                                      title: Text(language.displayName),
+                                      value: language,
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       ListTile(
                         leading: const Icon(Icons.delete_outline),
-                        title: const Text('Trash'),
+                        title: Text(l10n.trash),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           setState(() => _view = _NoteListView.trash);
@@ -571,6 +583,8 @@ class _FilteredEmptyView extends StatelessWidget {
       return const _EmptyNotesView();
     }
 
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -579,11 +593,11 @@ class _FilteredEmptyView extends StatelessWidget {
           children: [
             const Icon(Icons.search_off, size: 48),
             const SizedBox(height: 16),
-            const Text('No matching notes'),
+            Text(l10n.noMatchingNotes),
             const SizedBox(height: 8),
-            const Text('Try a different search or tag filter.'),
+            Text(l10n.tryDifferentSearchOrTagFilter),
             const SizedBox(height: 16),
-            TextButton(onPressed: onClear, child: const Text('Clear filters')),
+            TextButton(onPressed: onClear, child: Text(l10n.clearFilters)),
           ],
         ),
       ),
@@ -692,6 +706,8 @@ class _TrashListView extends StatelessWidget {
       return const _EmptyTrashView();
     }
 
+    final l10n = AppLocalizations.of(context)!;
+
     return ListView.builder(
       itemCount: notes.length,
       itemBuilder: (context, index) {
@@ -703,17 +719,19 @@ class _TrashListView extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Text('Deleted ${_formatDeletionDate(note.deletedAt!)}'),
+          subtitle: Text(
+            l10n.noteDeletedDate(_formatDeletionDate(note.deletedAt!)),
+          ),
           trailing: Wrap(
             spacing: 0,
             children: [
               IconButton(
-                tooltip: 'Restore note',
+                tooltip: l10n.restoreNoteTooltip,
                 onPressed: isLoading ? null : () => onRestore(note),
                 icon: const Icon(Icons.restore),
               ),
               IconButton(
-                tooltip: 'Delete permanently',
+                tooltip: l10n.deletePermanentlyTooltip,
                 onPressed: isLoading ? null : () => onDeletePermanently(note),
                 icon: const Icon(Icons.delete_forever_outlined),
               ),
@@ -746,15 +764,17 @@ class _EmptyTrashView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l10n = AppLocalizations.of(context)!;
+
+    return Center(
       child: Padding(
         padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.delete_outline, size: 48),
-            SizedBox(height: 16),
-            Text('Trash is empty'),
+            const Icon(Icons.delete_outline, size: 48),
+            const SizedBox(height: 16),
+            Text(l10n.trashIsEmpty),
           ],
         ),
       ),
@@ -767,6 +787,8 @@ class _EmptyNotesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -775,9 +797,9 @@ class _EmptyNotesView extends StatelessWidget {
           children: [
             const Icon(Icons.note_add_outlined, size: 48),
             const SizedBox(height: 16),
-            const Text('No notes yet'),
+            Text(l10n.noNotesYet),
             const SizedBox(height: 8),
-            const Text('Create a note to get started.'),
+            Text(l10n.createNoteToGetStarted),
           ],
         ),
       ),
@@ -793,6 +815,8 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -801,11 +825,11 @@ class _ErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 48),
             const SizedBox(height: 16),
-            const Text('Initialization failed'),
+            Text(l10n.initializationFailed),
             const SizedBox(height: 8),
             Text(error.toString(), textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            FilledButton(onPressed: onRetry, child: Text(l10n.retry)),
           ],
         ),
       ),
@@ -822,17 +846,18 @@ class _TagManagementDialog extends StatelessWidget {
     Tag tag,
   ) async {
     final controller = TextEditingController(text: tag.name);
-
     try {
       final newName = await showDialog<String>(
         context: context,
         builder: (dialogContext) {
+          final l10n = AppLocalizations.of(context)!;
+
           return AlertDialog(
-            title: const Text('Rename tag'),
+            title: Text(l10n.tagRenameDialogTitle),
             content: TextField(
               controller: controller,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Tag name'),
+              decoration: InputDecoration(labelText: l10n.tagName),
               onSubmitted: (value) {
                 Navigator.pop(dialogContext, value);
               },
@@ -840,13 +865,13 @@ class _TagManagementDialog extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
               FilledButton(
                 onPressed: () {
                   Navigator.pop(dialogContext, controller.text);
                 },
-                child: const Text('Rename'),
+                child: Text(l10n.rename),
               ),
             ],
           );
@@ -858,9 +883,10 @@ class _TagManagementDialog extends StatelessWidget {
       await provider.renameTag(tag.id, newName.trim());
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not rename tag: $error')));
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.tagRenameError(error.toString()))),
+        );
       }
     } finally {
       controller.dispose();
@@ -875,20 +901,19 @@ class _TagManagementDialog extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
+        final l10n = AppLocalizations.of(context)!;
+
         return AlertDialog(
-          title: const Text('Delete tag?'),
-          content: Text(
-            'Delete "${tag.name}"? '
-            'It will be removed from all notes.',
-          ),
+          title: Text(l10n.tagDeleteConfirmationTitle),
+          content: Text(l10n.tagDeleteConfirmationDescription(tag.name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Delete'),
+              child: Text(l10n.delete),
             ),
           ],
         );
@@ -901,25 +926,28 @@ class _TagManagementDialog extends StatelessWidget {
       await provider.deleteTag(tag.id);
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not delete tag: $error')));
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.tagDeleteError(error.toString()))),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return AlertDialog(
-      title: const Text('Manage tags'),
+      title: Text(l10n.tagManageDialogTitle),
       content: SizedBox(
         width: 360,
         child: Consumer<NotesProvider>(
           builder: (context, provider, child) {
             if (provider.tags.isEmpty) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('No tags created yet.')),
+                child: Center(child: Text(l10n.noTagsCreatedYet)),
               );
             }
 
@@ -944,14 +972,14 @@ class _TagManagementDialog extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        tooltip: 'Rename tag',
+                        tooltip: l10n.renameTagTooltip,
                         onPressed: provider.isLoading
                             ? null
                             : () => _renameTag(context, provider, tag),
                         icon: const Icon(Icons.edit_outlined),
                       ),
                       IconButton(
-                        tooltip: 'Delete tag',
+                        tooltip: l10n.deleteTagTooltip,
                         onPressed: provider.isLoading
                             ? null
                             : () => _deleteTag(context, provider, tag),
@@ -973,13 +1001,13 @@ class _TagManagementDialog extends StatelessWidget {
                   provider.tags.isEmpty || provider.selectedTagIds.isEmpty
                   ? null
                   : provider.clearTagFilters,
-              child: const Text('Clear'),
+              child: Text(l10n.clear),
             );
           },
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: Text(l10n.close),
         ),
       ],
     );
